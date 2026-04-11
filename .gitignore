@@ -1,0 +1,10 @@
+build/
+DerivedData/
+CallBlocker.xcodeproj/
+*.xcworkspace/
+.DS_Store
+xcuserdata/
+*.ipa
+Payload/
+CallBlocker/Info.plist
+BlockerExtension/Info.plist

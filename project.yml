@@ -1,0 +1,55 @@
+name: CallBlocker
+options:
+  bundleIdPrefix: com.callblocker
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
+    DEVELOPMENT_TEAM: ""
+targets:
+  CallBlocker:
+    type: application
+    platform: iOS
+    sources:
+      - CallBlocker
+      - Shared
+    info:
+      path: CallBlocker/Info.plist
+      properties:
+        CFBundleDisplayName: CallBlocker
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.callblocker.app
+        CODE_SIGN_ENTITLEMENTS: CallBlocker/CallBlocker.entitlements
+        TARGETED_DEVICE_FAMILY: "1,2"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+    dependencies:
+      - target: BlockerExtension
+  BlockerExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - BlockerExtension
+      - Shared
+    info:
+      path: BlockerExtension/Info.plist
+      properties:
+        CFBundleDisplayName: BlockerExtension
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.callkit.call-directory
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).CallDirectoryHandler
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.callblocker.app.BlockerExtension
+        CODE_SIGN_ENTITLEMENTS: BlockerExtension/BlockerExtension.entitlements
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
