@@ -46,4 +46,4 @@ jobs:
         with:
           name: CallBlocker-unsigned-ipa
           path: CallBlocker-unsigned.ipa
-          retention-days: 30
+          retention-days: 90

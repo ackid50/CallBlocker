@@ -1,7 +1,17 @@
 import SwiftUI
 import CallKit
 
-private let extensionBundleID = "com.callblocker.app.BlockerExtension"
+/// Bundle ID of the embedded Call Directory extension. Read from the bundle
+/// because sideloading tools rewrite bundle identifiers when re-signing.
+private let extensionBundleID: String = {
+    if let dir = Bundle.main.builtInPlugInsURL,
+       let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+        for item in items where item.pathExtension == "appex" {
+            if let id = Bundle(url: item)?.bundleIdentifier { return id }
+        }
+    }
+    return (Bundle.main.bundleIdentifier ?? "com.callblocker.app") + ".BlockerExtension"
+}()
 
 struct ContentView: View {
     @State private var rules: [Rule] = RuleStore.load()
@@ -26,6 +36,12 @@ struct ContentView: View {
                         Text("Extension status")
                         Spacer()
                         Text(extState).foregroundColor(.secondary)
+                    }
+                }
+                if !RuleStore.isShared {
+                    Section {
+                        Text("Shared storage (App Group) is unavailable, so the blocker extension cannot see your rules. Re-install the app with App Groups kept enabled in your signing tool.")
+                            .font(.caption).foregroundColor(.red)
                     }
                 }
                 Section(header: Text("Rules")) {
