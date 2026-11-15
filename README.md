@@ -28,3 +28,11 @@ developer account.
 
 With a free Apple ID the signature expires after 7 days; re-run step 3 to
 refresh it (rules are kept).
+
+## Limits
+
+- iOS has no true wildcard blocking: every number is listed individually, so
+  a rule with 6 wildcards is 1,000,000 entries. iOS accepts roughly 2 million
+  entries per blocker in total — "block everything except contacts" is not
+  possible with this mechanism.
+- Free Apple ID signing lasts 7 days and allows 3 sideloaded apps.

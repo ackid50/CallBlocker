@@ -1,59 +1,95 @@
 import Foundation
 
+/// Turns wildcard patterns into concrete phone numbers.
+///
+/// iOS has no prefix/wildcard blocking: a Call Directory extension must hand
+/// the system every single number, in ascending order. Numbers are therefore
+/// generated lazily, so the extension never holds the whole list in memory
+/// (extensions are killed if they use more than a few MB).
 enum RuleExpander {
     static let maxPerRule = 1_000_000
+    /// iOS rejects a directory beyond roughly this many entries per extension.
+    static let recommendedTotal = 2_000_000
+    static let maxDigits = 15 // E.164
     static let wildcards: Set<Character> = ["x", "X", "?", "*"]
 
-    static func expand(_ rules: [Rule]) -> [Int64] {
-        var set = Set<Int64>()
-        for rule in rules where rule.enabled {
-            set.formUnion(expandPattern(rule.pattern))
+    /// Yields the numbers of one pattern in ascending order.
+    struct Generator {
+        let base: Int64
+        let places: [Int64] // place value of each wildcard, most significant first
+        let total: Int
+        private var index = 0
+
+        init(base: Int64, places: [Int64], total: Int) {
+            self.base = base
+            self.places = places
+            self.total = total
         }
-        return set.sorted()
+
+        mutating func next() -> Int64? {
+            guard index < total else { return nil }
+            var n = base
+            var rem = index
+            for place in places.reversed() {
+                n += Int64(rem % 10) * place
+                rem /= 10
+            }
+            index += 1
+            return n
+        }
     }
 
-    static func expandPattern(_ raw: String) -> [Int64] {
-        let cleaned = raw.filter { $0.isNumber || wildcards.contains($0) }
-        guard !cleaned.isEmpty else { return [] }
-        let wildCount = cleaned.filter { wildcards.contains($0) }.count
-        let total = pow10(wildCount)
-        guard total > 0, total <= maxPerRule else { return [] }
+    static func generator(for raw: String) -> Generator? {
+        let cleaned = Array(raw.filter { ($0.isASCII && $0.isNumber) || wildcards.contains($0) })
+        guard !cleaned.isEmpty, cleaned.count <= maxDigits else { return nil }
 
-        let template = Array(cleaned)
-        var results: [Int64] = []
-        results.reserveCapacity(total)
-        var digits = Array(repeating: 0, count: wildCount)
-
-        for _ in 0..<total {
-            var buf = ""
-            buf.reserveCapacity(template.count)
-            var di = 0
-            for ch in template {
-                if wildcards.contains(ch) {
-                    buf.append(Character(String(digits[di])))
-                    di += 1
-                } else {
-                    buf.append(ch)
-                }
+        var base: Int64 = 0
+        var places: [Int64] = []
+        var place: Int64 = 1
+        for ch in cleaned.reversed() {
+            if wildcards.contains(ch) {
+                places.insert(place, at: 0)
+            } else if let d = ch.wholeNumberValue {
+                base += Int64(d) * place
             }
-            if let n = Int64(buf) { results.append(n) }
-
-            var i = wildCount - 1
-            while i >= 0 {
-                digits[i] += 1
-                if digits[i] < 10 { break }
-                digits[i] = 0
-                i -= 1
-            }
+            place *= 10
         }
-        return results
+
+        var total = 1
+        for _ in places {
+            total *= 10
+            if total > maxPerRule { return nil }
+        }
+        return Generator(base: base, places: places, total: total)
     }
 
-    private static func pow10(_ n: Int) -> Int {
-        guard n >= 0 else { return 0 }
-        if n == 0 { return 1 }
-        var r = 1
-        for _ in 0..<n { r *= 10 }
-        return r
+    /// How many numbers a pattern covers (0 if invalid or too large).
+    static func count(_ raw: String) -> Int {
+        generator(for: raw)?.total ?? 0
+    }
+
+    /// Upper bound on entries for the enabled rules (overlaps counted twice).
+    static func totalCount(_ rules: [Rule]) -> Int {
+        rules.filter { $0.enabled }.reduce(0) { $0 + count($1.pattern) }
+    }
+
+    /// Calls `body` with every number covered by the enabled rules, ascending
+    /// and without duplicates, using constant memory.
+    static func forEachNumber(in rules: [Rule], _ body: (Int64) -> Void) {
+        var gens = rules.filter { $0.enabled }.compactMap { generator(for: $0.pattern) }
+        var heads: [Int64?] = []
+        for i in gens.indices { heads.append(gens[i].next()) }
+
+        while true {
+            var smallest: Int64?
+            for h in heads {
+                if let h = h, smallest == nil || h < smallest! { smallest = h }
+            }
+            guard let n = smallest else { return }
+            if n > 0 { body(n) }
+            for i in gens.indices where heads[i] == n {
+                heads[i] = gens[i].next()
+            }
+        }
     }
 }

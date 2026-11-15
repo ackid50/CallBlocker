@@ -20,7 +20,7 @@ struct ContentView: View {
     @State private var extState: String = "Unknown"
 
     var totalBlocked: Int {
-        RuleExpander.expand(rules).count
+        RuleExpander.totalCount(rules)
     }
 
     var body: some View {
@@ -36,6 +36,12 @@ struct ContentView: View {
                         Text("Extension status")
                         Spacer()
                         Text(extState).foregroundColor(.secondary)
+                    }
+                }
+                if totalBlocked > RuleExpander.recommendedTotal {
+                    Section {
+                        Text("iOS limits how many numbers one blocker can hold (about 2 million). The reload may fail with this many.")
+                            .font(.caption).foregroundColor(.orange)
                     }
                 }
                 if !RuleStore.isShared {
@@ -56,7 +62,7 @@ struct ContentView: View {
                                 if !rule.label.isEmpty {
                                     Text(rule.label).font(.caption).foregroundColor(.secondary)
                                 }
-                                Text("\(RuleExpander.expandPattern(rule.pattern).count) numbers")
+                                Text("\(RuleExpander.count(rule.pattern)) numbers")
                                     .font(.caption2).foregroundColor(.secondary)
                             }
                         }
@@ -130,7 +136,7 @@ struct AddRuleView: View {
     var onAdd: (Rule) -> Void
 
     var expansion: Int {
-        RuleExpander.expandPattern(pattern).count
+        RuleExpander.count(pattern)
     }
 
     var body: some View {
@@ -141,7 +147,7 @@ struct AddRuleView: View {
                         .keyboardType(.phonePad)
                         .font(.body.monospaced())
                         .autocorrectionDisabled()
-                    Text("Digits + wildcards (x, ?, *). Include country code. Max 1,000,000 numbers per rule.")
+                    Text("Digits + wildcards (x, ?, *). Include country code. Up to 6 wildcards (1,000,000 numbers) per rule.")
                         .font(.caption).foregroundColor(.secondary)
                     if !pattern.isEmpty {
                         Text(expansion == 0

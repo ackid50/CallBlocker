@@ -6,8 +6,7 @@ class CallDirectoryHandler: CXCallDirectoryProvider {
     override func beginRequest(with context: CXCallDirectoryExtensionContext) {
         context.delegate = self
         let rules = RuleStore.load()
-        let numbers = RuleExpander.expand(rules)
-        for n in numbers {
+        RuleExpander.forEachNumber(in: rules) { n in
             context.addBlockingEntry(withNextSequentialPhoneNumber: n)
         }
         context.completeRequest()
